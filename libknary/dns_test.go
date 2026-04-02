@@ -3,6 +3,7 @@ package libknary
 import (
 	"net"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/miekg/dns"
@@ -74,18 +75,18 @@ func TestQueryDNS_InvalidType(t *testing.T) {
 }
 
 func TestHandleDNS_ARecord(t *testing.T) {
-	// Create test DNS message
+	oldDomains := GetDomains()
+	LoadDomains("example.com")
+	defer LoadDomains(strings.Join(oldDomains, ","))
+
 	msg := new(dns.Msg)
 	msg.SetQuestion("test.example.com.", dns.TypeA)
 
-	// Create mock response writer
 	mockAddr, _ := net.ResolveUDPAddr("udp", "127.0.0.1:12345")
 	mockWriter := &mockResponseWriter{remoteAddr: mockAddr}
 
-	// Test that HandleDNS doesn't panic
 	HandleDNS(mockWriter, msg, "192.0.2.1")
 
-	// Verify response was written
 	if !mockWriter.written {
 		t.Errorf("Expected response to be written")
 	}
@@ -110,7 +111,10 @@ func TestGoSendMsg_WithDebug(t *testing.T) {
 }
 
 func TestParseDNS_MultipleQuestions(t *testing.T) {
-	// Create DNS message with multiple questions
+	oldDomains := GetDomains()
+	LoadDomains("example.com")
+	defer LoadDomains(strings.Join(oldDomains, ","))
+
 	msg := new(dns.Msg)
 	msg.SetQuestion("test1.example.com.", dns.TypeA)
 	msg.Question = append(msg.Question, dns.Question{
@@ -119,10 +123,159 @@ func TestParseDNS_MultipleQuestions(t *testing.T) {
 		Qclass: dns.ClassINET,
 	})
 
-	// Test parsing doesn't panic with multiple questions
 	parseDNS(msg, "127.0.0.1:12345", "192.0.2.1")
+}
 
-	// Test passes if no panic occurs
+func TestParseDNS_ReverseProxyDomain_NoProxyDNS(t *testing.T) {
+	oldDomains := GetDomains()
+	LoadDomains("example.com")
+	defer LoadDomains(strings.Join(oldDomains, ","))
+
+	oldProxy := os.Getenv("REVERSE_PROXY_DOMAIN")
+	os.Setenv("REVERSE_PROXY_DOMAIN", "proxy.example.com")
+	defer os.Setenv("REVERSE_PROXY_DOMAIN", oldProxy)
+
+	oldProxyDNS := os.Getenv("REVERSE_PROXY_DNS")
+	os.Setenv("REVERSE_PROXY_DNS", "")
+	defer os.Setenv("REVERSE_PROXY_DNS", oldProxyDNS)
+
+	m := new(dns.Msg)
+	m.SetReply(&dns.Msg{})
+	m.Question = []dns.Question{{
+		Name:   "test.proxy.example.com.",
+		Qtype:  dns.TypeA,
+		Qclass: dns.ClassINET,
+	}}
+
+	// with REVERSE_PROXY_DNS empty, should fall through to normal handling
+	parseDNS(m, "127.0.0.1:12345", "192.0.2.1")
+
+	// should have an A record answer from normal DNS handling
+	if len(m.Answer) == 0 {
+		t.Error("Expected A record answer when REVERSE_PROXY_DNS is not set")
+	}
+}
+
+func TestParseDNS_SOARecord(t *testing.T) {
+	oldDomains := GetDomains()
+	LoadDomains("example.com")
+	defer LoadDomains(strings.Join(oldDomains, ","))
+
+	m := new(dns.Msg)
+	m.SetReply(&dns.Msg{})
+	m.Question = []dns.Question{{
+		Name:   "example.com.",
+		Qtype:  dns.TypeSOA,
+		Qclass: dns.ClassINET,
+	}}
+
+	parseDNS(m, "127.0.0.1:12345", "192.0.2.1")
+
+	if len(m.Answer) == 0 {
+		t.Error("Expected SOA record in answer")
+	}
+
+	foundSOA := false
+	for _, rr := range m.Answer {
+		if _, ok := rr.(*dns.SOA); ok {
+			foundSOA = true
+		}
+	}
+	if !foundSOA {
+		t.Error("Expected SOA record type in answer")
+	}
+}
+
+func TestParseDNS_NSRecord(t *testing.T) {
+	oldDomains := GetDomains()
+	LoadDomains("example.com")
+	defer LoadDomains(strings.Join(oldDomains, ","))
+
+	m := new(dns.Msg)
+	m.SetReply(&dns.Msg{})
+	m.Question = []dns.Question{{
+		Name:   "example.com.",
+		Qtype:  dns.TypeNS,
+		Qclass: dns.ClassINET,
+	}}
+
+	parseDNS(m, "127.0.0.1:12345", "192.0.2.1")
+
+	if len(m.Answer) == 0 {
+		t.Error("Expected NS record in answer")
+	}
+
+	foundNS := false
+	for _, rr := range m.Answer {
+		if _, ok := rr.(*dns.NS); ok {
+			foundNS = true
+		}
+	}
+	if !foundNS {
+		t.Error("Expected NS record type in answer")
+	}
+}
+
+func TestParseDNS_CNAMERecord(t *testing.T) {
+	oldDomains := GetDomains()
+	LoadDomains("example.com")
+	defer LoadDomains(strings.Join(oldDomains, ","))
+
+	m := new(dns.Msg)
+	m.SetReply(&dns.Msg{})
+	m.Question = []dns.Question{{
+		Name:   "sub.example.com.",
+		Qtype:  dns.TypeCNAME,
+		Qclass: dns.ClassINET,
+	}}
+
+	parseDNS(m, "127.0.0.1:12345", "192.0.2.1")
+
+	if len(m.Answer) == 0 {
+		t.Error("Expected CNAME record in answer")
+	}
+}
+
+func TestParseDNS_CNAMERecord_RootDomain(t *testing.T) {
+	oldDomains := GetDomains()
+	LoadDomains("example.com")
+	defer LoadDomains(strings.Join(oldDomains, ","))
+
+	m := new(dns.Msg)
+	m.SetReply(&dns.Msg{})
+	m.Question = []dns.Question{{
+		Name:   "example.com.",
+		Qtype:  dns.TypeCNAME,
+		Qclass: dns.ClassINET,
+	}}
+
+	parseDNS(m, "127.0.0.1:12345", "192.0.2.1")
+
+	// CNAME records cannot be returned for root domain
+	if len(m.Answer) != 0 {
+		t.Error("Should not return CNAME for root domain")
+	}
+}
+
+func TestParseDNS_IPv6Host_ARecord(t *testing.T) {
+	oldDomains := GetDomains()
+	LoadDomains("example.com")
+	defer LoadDomains(strings.Join(oldDomains, ","))
+
+	m := new(dns.Msg)
+	m.SetReply(&dns.Msg{})
+	m.Question = []dns.Question{{
+		Name:   "test.example.com.",
+		Qtype:  dns.TypeA,
+		Qclass: dns.ClassINET,
+	}}
+
+	// IPv6 EXT_IP should return empty response for A questions (RFC 4074)
+	parseDNS(m, "127.0.0.1:12345", "2001:db8::1")
+
+	if len(m.Answer) != 0 {
+		t.Error("IPv6 host should return empty A record response")
+	}
 }
 
 // Mock response writer for testing

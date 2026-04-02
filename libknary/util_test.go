@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"fmt"
 	"log"
 	"math/big"
 	"net"
@@ -71,9 +72,40 @@ func NewLocalHTTPSTestServer(handler http.Handler, eTime int) *httptest.Server {
 }
 
 func TestCheckUpdate(t *testing.T) {
-	val, err := CheckUpdate(VERSION, GITHUBVERSION, GITHUB)
-	if val == false && err != nil {
-		t.Errorf("Cannot check for updates %s", err.Error())
+	// use a local test server to avoid flaky network calls in CI
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "99.0.0") // simulate a newer version available
+	}))
+	defer server.Close()
+
+	val, err := CheckUpdate(VERSION, server.URL, GITHUB)
+	if err != nil {
+		t.Errorf("CheckUpdate returned error: %s", err.Error())
+	}
+	if !val {
+		t.Error("Expected update available (server version 99.0.0 > test version)")
+	}
+}
+
+func TestCheckUpdate_UpToDate(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, VERSION) // same version as running
+	}))
+	defer server.Close()
+
+	val, err := CheckUpdate(VERSION, server.URL, GITHUB)
+	if err != nil {
+		t.Errorf("CheckUpdate returned error: %s", err.Error())
+	}
+	if val {
+		t.Error("Expected no update available when versions match")
+	}
+}
+
+func TestCheckUpdate_ServerUnavailable(t *testing.T) {
+	_, err := CheckUpdate(VERSION, "http://127.0.0.1:1", GITHUB)
+	if err == nil {
+		t.Error("Expected error when server is unreachable")
 	}
 }
 
