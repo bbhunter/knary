@@ -208,7 +208,8 @@ func handleRequest(conn net.Conn) bool {
 			fwd := ""
 
 			for _, header := range headers {
-				if stringContains(header, "Host") {
+				lowerHeader := strings.ToLower(header)
+				if strings.HasPrefix(lowerHeader, "host:") {
 					host = strings.TrimRight(header, "\r\n") + ":"
 					// using a reverse proxy, set ports back to the actual received ones
 					if os.Getenv("REVERSE_PROXY_HTTP") != "" || os.Getenv("REVERSE_PROXY_HTTPS") != "" {
@@ -232,13 +233,13 @@ func handleRequest(conn net.Conn) bool {
 					stringContains(header, "CONNECT ") {
 					query = header
 				}
-				if stringContains(header, "User-Agent") {
+				if strings.HasPrefix(lowerHeader, "user-agent:") {
 					userAgent = header
 				}
-				if stringContains(header, "Cookie") {
+				if strings.HasPrefix(lowerHeader, "cookie:") {
 					cookie = header
 				}
-				if stringContains(header, "X-Forwarded-For") {
+				if strings.HasPrefix(lowerHeader, "x-forwarded-for:") {
 					//this is pretty funny, and also very irritating.
 					//Golang reverse proxy automagically adds the source IP address, but not the port.
 					//We add the value we want in the prepareRequest function,

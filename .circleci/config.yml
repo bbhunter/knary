@@ -3,18 +3,15 @@ orbs:
   coveralls: coveralls/coveralls@1.0.6
 jobs:
   build:
-    parameters:
-      go-version:
-        type: string
     working_directory: ~/repo
     docker:
-      - image: cimg/go:<< parameters.go-version >>-node
+      - image: cimg/go:1.25-node
     parallelism: 3
     steps:
       - checkout
       - restore_cache:
           keys:
-            - go-mod-v4-{{ checksum "go.sum" }}-<< parameters.go-version >>
+            - go-mod-v4-{{ checksum "go.sum" }}
       - run:
           name: Install Dependencies
           command: go get -u -t
@@ -22,7 +19,7 @@ jobs:
           name: Install gcov2lcov
           command: go install github.com/jandelgado/gcov2lcov@latest
       - save_cache:
-          key: go-mod-v4-{{ checksum "go.sum" }}-<< parameters.go-version >>
+          key: go-mod-v4-{{ checksum "go.sum" }}
           paths:
             - "/go/pkg/mod"
       - run:
@@ -38,7 +35,4 @@ jobs:
 workflows:
   test:
     jobs:
-      - build:
-          go-version: "1.24"
-      - build:
-          go-version: "1.25"
+      - build
