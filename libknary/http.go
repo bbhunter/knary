@@ -170,8 +170,8 @@ func Accept443(ln net.Listener, wg *sync.WaitGroup, restart <-chan bool) {
 }
 
 func httpRespond(conn net.Conn) bool {
-	conn.Write([]byte(" ")) // necessary as a 0 byte response triggers some clients to resend the request
-	conn.Close()            // v. important lol
+	conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 1\r\n\r\n "))
+	conn.Close()
 	return true
 }
 
