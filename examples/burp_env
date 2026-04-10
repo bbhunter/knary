@@ -22,10 +22,6 @@ REVERSE_PROXY_DOMAIN=<burp.knary.tld>
 REVERSE_PROXY_HTTP=127.0.0.1:8080
 REVERSE_PROXY_HTTPS=127.0.0.1:8443
 REVERSE_PROXY_DNS=127.0.0.1:8053
-
-# MIGRATION FROM BURP_* (removed in v3.5.0):
-# Old: BURP_DOMAIN=<burp.knary.tld>          → New: REVERSE_PROXY_DOMAIN=<burp.knary.tld>
-# Old: BURP_HTTP_PORT=8080                   → New: REVERSE_PROXY_HTTP=127.0.0.1:8080
-# Old: BURP_HTTPS_PORT=8443                  → New: REVERSE_PROXY_HTTPS=127.0.0.1:8443
-# Old: BURP_DNS_PORT=8053                    → New: REVERSE_PROXY_DNS=127.0.0.1:8053
-# Old: BURP_INT_IP=127.0.0.1                 → (no longer needed - include IP in REVERSE_PROXY_* variables)
+# This will surface Go's internal HTTP server errors (TLS handshake errors, HTTP/2 preface errors, etc.)
+# Helpful while setting up Burp Collaborator, but not in production due to noisy internet scanners.
+LOG_REVERSE_PROXY_ERRORS=true # Default is false

@@ -3,6 +3,7 @@ package libknary
 import (
 	"crypto/tls"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -13,6 +14,15 @@ import (
 	"sync"
 	"time"
 )
+
+// By default we discard noisy TLS handshake / HTTP/2 errors when using the reverse proxy.
+// Set LOG_REVERSE_PROXY_ERRORS=true to surface these errors.
+func reverseProxyErrorLogger() *log.Logger {
+	if os.Getenv("LOG_REVERSE_PROXY_ERRORS") == "true" {
+		return nil // nil = default logger, writes to stderr
+	}
+	return log.New(io.Discard, "", 0)
+}
 
 type routerConfig struct {
 	scheme              string // "http" or "https"
@@ -32,6 +42,7 @@ func createReverseProxyHandler(cfg routerConfig) http.HandlerFunc {
 					req.URL.Scheme = cfg.scheme
 					req.URL.Host = cfg.reverseProxyHost
 				},
+				ErrorLog: reverseProxyErrorLogger(),
 			}
 			if cfg.useTLS {
 				proxy.Transport = &http.Transport{
@@ -53,6 +64,7 @@ func createReverseProxyHandler(cfg routerConfig) http.HandlerFunc {
 				}
 				req.URL.Host = cfg.knaryListenerURL
 			},
+			ErrorLog: reverseProxyErrorLogger(),
 		}
 		if cfg.knaryListenerUseTLS {
 			proxy.Transport = &http.Transport{
@@ -79,7 +91,12 @@ func Listen80() net.Listener {
 				knaryListenerUseTLS: false,
 			})
 
-			e := http.ListenAndServe(os.Getenv("BIND_ADDR")+":80", handler)
+			srv := &http.Server{
+				Addr:     os.Getenv("BIND_ADDR") + ":80",
+				Handler:  handler,
+				ErrorLog: reverseProxyErrorLogger(),
+			}
+			e := srv.ListenAndServe()
 			if e != nil {
 				Printy(e.Error(), 2)
 			}
@@ -121,7 +138,12 @@ func Listen443() net.Listener {
 				knaryListenerUseTLS: true,
 			})
 
-			e := http.ListenAndServeTLS(os.Getenv("BIND_ADDR")+":443", os.Getenv("TLS_CRT"), os.Getenv("TLS_KEY"), handler)
+			srv := &http.Server{
+				Addr:     os.Getenv("BIND_ADDR") + ":443",
+				Handler:  handler,
+				ErrorLog: reverseProxyErrorLogger(),
+			}
+			e := srv.ListenAndServeTLS(os.Getenv("TLS_CRT"), os.Getenv("TLS_KEY"))
 			if e != nil {
 				Printy(e.Error(), 2)
 			}

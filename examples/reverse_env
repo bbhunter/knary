@@ -18,4 +18,6 @@ REVERSE_PROXY_DOMAIN=<web.knary.tld>
 REVERSE_PROXY_HTTP=127.0.0.1:8080
 #REVERSE_PROXY_HTTPS=127.0.0.1:8433
 #REVERSE_PROXY_DNS=127.0.0.1:8053
-
+# This will surface Go's internal HTTP server errors (TLS handshake errors, HTTP/2 preface errors, etc.)
+# Helpful while setting up a reverse proxy, but not in production due to noisy internet scanners.
+LOG_REVERSE_PROXY_ERRORS=true # Default is false
