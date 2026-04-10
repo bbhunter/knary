@@ -5,7 +5,7 @@ jobs:
   build:
     working_directory: ~/repo
     docker:
-      - image: cimg/go:1.24-node
+      - image: cimg/go:1.25-node
     parallelism: 3
     steps:
       - checkout
@@ -32,3 +32,7 @@ jobs:
       - run:
           name: Run Go Vet
           command: go vet ./...
+workflows:
+  test:
+    jobs:
+      - build

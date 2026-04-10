@@ -1,4 +1,7 @@
 # RENAME ME TO .env
+# This example shows how to run Burp Collaborator alongside knary using REVERSE_PROXY_* configuration
+# Note: BURP_* configuration was removed in v3.5.0 - use REVERSE_PROXY_* instead
+
 DNS=true
 HTTP=true
 BIND_ADDR=0.0.0.0
@@ -12,14 +15,13 @@ LOG_FILE=knary.log
 #ALLOWLIST_FILE=allowlist.txt
 #DENYLIST_FILE=denylist.txt
 
-# Deprecated in favour of the reverse proxy configuration shown below
-BURP_DOMAIN=<burp.knary.tld>
-BURP_DNS_PORT=8053
-BURP_HTTP_PORT=8080
-BURP_HTTPS_PORT=8433
-
-# Recommended configuration
-#REVERSE_PROXY_DOMAIN=<burp.knary.tld>
-#REVERSE_PROXY_HTTP=127.0.0.1:8080
-#REVERSE_PROXY_HTTPS=127.0.0.1:8433
-#REVERSE_PROXY_DNS=127.0.0.1:8053
+# Configuration for Burp Collaborator (or any other reverse proxy)
+# Requests to *.burp.knary.tld will be proxied to Burp Collaborator
+# Configure Burp Collaborator to listen on non-standard ports since knary uses 53, 80, 443
+REVERSE_PROXY_DOMAIN=<burp.knary.tld>
+REVERSE_PROXY_HTTP=127.0.0.1:8080
+REVERSE_PROXY_HTTPS=127.0.0.1:8443
+REVERSE_PROXY_DNS=127.0.0.1:8053
+# This will surface Go's internal HTTP server errors (TLS handshake errors, HTTP/2 preface errors, etc.)
+# Helpful while setting up Burp Collaborator, but not in production due to noisy internet scanners.
+LOG_REVERSE_PROXY_ERRORS=true # Default is false

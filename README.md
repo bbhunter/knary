@@ -18,7 +18,7 @@ Defenders also use canaries as tripwires that can alert them of an attacker with
 
 1. Download the [applicable 64-bit knary binary](https://github.com/sudosammy/knary/releases) __OR__ build knary from source:
 
-__Prerequisite:__ You need Go >=1.24 to build knary.
+__Prerequisite:__ You need Go >=1.25 to build knary.
 ```
 go install github.com/sudosammy/knary/v3@latest
 ```
@@ -81,7 +81,7 @@ Sample configurations can be found [in the examples](https://github.com/sudosamm
 Using knary in a container is as simple as creating your `.env` file (or setting environment variables in the `docker-compose.yaml` file) and running `sudo docker compose up -d`
 
 ## OPSEC notes
-* Let's Encrypt will dox all the domains you are using with knary (and your `DNS_SUBDOMAIN`, `BURP_DOMAIN`, or `REVERSE_PROXY_DOMAIN` if you are using those configurations). This is due to these domains being included in the SAN certificate generated for you. A remote adversary can read the certificate and extract the list of domains within it. To avoid this, don't configure `LETS_ENCRYPT`. You can use self-signed certificates with `TLS_CRT=<path>` and `TLS_KEY=<path>`; however, many hosts will refuse to connect reducing your visibility of incoming HTTPS connections.
+* Let's Encrypt will dox all the domains you are using with knary (and your `DNS_SUBDOMAIN` or `REVERSE_PROXY_DOMAIN` if you are using those configurations). This is due to these domains being included in the SAN certificate generated for you. A remote adversary can read the certificate and extract the list of domains within it. To avoid this, don't configure `LETS_ENCRYPT`. You can use self-signed certificates with `TLS_CRT=<path>` and `TLS_KEY=<path>`; however, many hosts will refuse to connect reducing your visibility of incoming HTTPS connections.
 * With enough effort, knary is likely fingerprint-able by a remote host. i.e. it's plausible an adversary could determine you are running knary on a given host. This is because knary is not an RFC compliant nameserver (because doing so involves dark magic) and it likely behaves in an unusual / unique manner when compared to other nameservers.
 
 ## Supported Webhook Configurations
