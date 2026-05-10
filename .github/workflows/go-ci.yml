@@ -1,0 +1,69 @@
+name: Go CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ["1.25.x", "1.26.x"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+
+      - name: Build all packages
+        run: go build ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build binary and smoke run
+        run: |
+          go build -o knary .
+          ./knary -version
+
+  coveralls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+          cache: true
+
+      - name: Install gcov2lcov
+        run: go install github.com/jandelgado/gcov2lcov@latest
+
+      - name: Run tests with coverage
+        run: go test -v -coverprofile=coverage.out ./...
+
+      - name: Convert coverage profile to LCOV
+        run: mkdir -p coverage && gcov2lcov -infile=coverage.out -outfile=coverage/lcov.info
+
+      - name: Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: coverage/lcov.info
+          format: lcov
+
+      - name: Vet
+        run: go vet ./...
